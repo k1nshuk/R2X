@@ -249,7 +249,15 @@
       "fuel": "COAL",
       "type": "ST"
     },
+    "coal-igcc_coal-ccs_mod": {
+      "fuel": "COAL",
+      "type": "ST"
+    },
     "coal-new": {
+      "fuel": "COAL",
+      "type": "ST"
+    },
+    "coal-new_coal-ccs_mod": {
       "fuel": "COAL",
       "type": "ST"
     },
@@ -257,7 +265,19 @@
       "fuel": "COAL",
       "type": "ST"
     },
+    "coaloldscr-igcc_coal-ccs_mod": {
+      "fuel": "COAL",
+      "type": "ST"
+    },
+    "coaloldscr_coal-ccs_mod": {
+      "fuel": "COAL",
+      "type": "ST"
+    },
     "coalolduns": {
+      "fuel": "COAL",
+      "type": "ST"
+    },
+    "coalolduns_coal-ccs_mod": {
       "fuel": "COAL",
       "type": "ST"
     },
@@ -314,6 +334,10 @@
       "type": "CC"
     },
     "gas-cc-ccs_mod": {
+      "fuel": "NATURAL_GAS",
+      "type": "CC"
+    },
+    "gas-cc_gas-cc-ccs_mod": {
       "fuel": "NATURAL_GAS",
       "type": "CC"
     },
@@ -381,6 +405,10 @@
       "fuel": "NUCLEAR",
       "type": "ST"
     },
+    "nuclear-smr": {
+      "fuel": "NUCLEAR",
+      "type": "ST"
+    },
     "o-g-s": {
       "fuel": "OTHER",
       "type": "GT"
@@ -392,6 +420,14 @@
     "pvb": {
       "fuel": null,
       "type": "PVe"
+    },
+    "smr": {
+      "fuel": "NUCLEAR",
+      "type": "ST"
+    },
+    "smr_css": {
+      "fuel": "NUCLEAR",
+      "type": "ST"
     },
     "undisc": {
       "fuel": "GEOTHERMAL",

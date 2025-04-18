@@ -4,7 +4,6 @@ import importlib
 from argparse import ArgumentParser
 from collections.abc import Sequence
 from datetime import datetime, timedelta
-from importlib.resources import files
 from pathlib import Path, PureWindowsPath
 from typing import Any
 
@@ -20,8 +19,8 @@ from infrasys.time_series_models import SingleTimeSeries
 from infrasys.value_curves import AverageRateCurve, InputOutputCurve, LinearCurve
 from loguru import logger
 from pint import Quantity
-from plexosdb import PlexosSQLite
-from plexosdb.enums import ClassEnum, CollectionEnum
+from plexosdb import ClassEnum, CollectionEnum, PlexosDB
+from plexosdb.utils import get_sql_query
 
 from r2x.api import System
 from r2x.config_models import PlexosConfig
@@ -34,29 +33,34 @@ from r2x.enums import (
     StorageTechs,
     ThermalFuels,
 )
-from r2x.exceptions import ModelError, ParserError
+from r2x.exceptions import R2XModelError, R2XParserError
 from r2x.exporter.utils import get_property_magnitude
 from r2x.models import (
     ACBus,
+    Area,
     Emission,
     EnergyReservoirStorage,
+    FromTo_ToFrom,
     Generator,
     HydroDispatch,
+    HydroGenerationCost,
+    HydroPumpedStorage,
+    InputOutput,
     LoadZone,
+    MinMax,
     MonitoredLine,
+    PowerLoad,
     RenewableGen,
+    RenewableGenerationCost,
     Reserve,
     ReserveMap,
     ThermalGen,
+    ThermalGenerationCost,
+    Transformer2W,
     TransmissionInterface,
     TransmissionInterfaceMap,
+    UpDown,
 )
-from r2x.models.branch import Transformer2W
-from r2x.models.core import InputOutput, MinMax
-from r2x.models.costs import HydroGenerationCost, RenewableGenerationCost, ThermalGenerationCost
-from r2x.models.generators import HydroPumpedStorage
-from r2x.models.load import PowerLoad
-from r2x.models.topology import Area
 from r2x.units import ureg
 from r2x.utils import get_enum_from_string, get_pint_unit, validate_string
 
@@ -76,7 +80,7 @@ from .plexos_utils import (
     parse_data_file,
     time_slice_handler,
 )
-from .polars_helpers import pl_filter_year
+from .polars_helpers import pl_filter_by_year
 
 models = importlib.import_module("r2x.models")
 
@@ -187,7 +191,7 @@ class PlexosParser(PCMParser):
         one_required = ["fuel_map", "device_map", "category_map"]
         if all(getattr(self, one_req, {}) == {} for one_req in one_required) and self.device_match_string:
             msg = f"At least one of {', or '.join(one_required)} is required to initialize PlexosParser"
-            raise ParserError(msg)
+            raise R2XParserError(msg)
 
         # Populate databse from XML file.
         # If xml file is not specified, check user_dict["fmap"]["xml_file"] or use
@@ -198,7 +202,7 @@ class PlexosParser(PCMParser):
 
         xml_file = str(self.run_folder / xml_file)
 
-        self.db = PlexosSQLite(xml_fname=xml_file)
+        self.db = PlexosDB.from_xml(xml_file)
 
         # Extract scenario data
         model_name = getattr(self.input_config, "model_name", None) or self.input_config.fmap.get(
@@ -220,6 +224,7 @@ class PlexosParser(PCMParser):
             datetime(self.year, 1, 1), datetime(self.year + 1, 1, 1), interval="1h", eager=True, closed="left"
         ).to_frame("datetime")
         self._data_file_cache: dict[Path, pl.DataFrame] = {}
+        self._data_file_column_types: dict[Path, DATAFILE_COLUMNS] = {}
 
         return
 
@@ -426,7 +431,7 @@ class PlexosParser(PCMParser):
                     self.system.add_component(load)
                     ts_dict = {"solve_year": self.year}
                     if isinstance(max_active_power, SingleTimeSeries):
-                        self.system.add_time_series(max_active_power, load, **ts_dict)
+                        self.system.add_time_series(max_active_power, load, connection=None, **ts_dict)
 
             ts_fields = {k: v for k, v in mapped_records.items() if isinstance(v, SingleTimeSeries)}
             if ts_fields:
@@ -434,7 +439,7 @@ class PlexosParser(PCMParser):
                 ts_dict = {"solve_year": self.year}
                 for ts_name, ts in ts_fields.items():
                     ts.variable_name = ts_name
-                    self.system.add_time_series(ts, generator, **ts_dict)
+                    self.system.add_time_series(ts, generator, connection=None, **ts_dict)
         return
 
     def _add_generator_emissions(self, default_model=Emission):
@@ -465,6 +470,12 @@ class PlexosParser(PCMParser):
                 mapped_records["emission_type"] = EmissionType.OTHER
 
             gen_component = self.system.list_components_by_name(Generator, generator_name)
+
+            # If there is not gen_component at this point it means the generator is not activated on the model
+            # or we could not parse it.
+            if not gen_component:
+                continue
+
             assert len(gen_component) == 1
             gen_component = gen_component[0]
             valid_fields, _ = field_filter(mapped_records, default_model.model_fields)
@@ -546,7 +557,7 @@ class PlexosParser(PCMParser):
                 ts_dict = {"solve_year": self.year}
                 for ts_name, ts in ts_fields.items():
                     ts.variable_name = ts_name
-                    self.system.add_time_series(ts, reserve, **ts_dict)
+                    self.system.add_time_series(ts, reserve, connection=None, **ts_dict)
 
         reserve_map = ReserveMap(name="contributing_generators")
         self.system.add_component(reserve_map)
@@ -606,14 +617,16 @@ class PlexosParser(PCMParser):
             logger.warning("No line objects found on the system.")
             return
 
-        lines_pivot_memberships = self.db.get_memberships(
-            *lines_pivot["name"].to_list(), object_class=ClassEnum.Line
+        lines_pivot_memberships = self.db.get_object_memberships(
+            *lines_pivot["name"].to_list(), class_enum=ClassEnum.Line
         )
         for line in lines_pivot.iter_rows(named=True):
             line_properties_mapped = {self.property_map.get(key, key): value for key, value in line.items()}
             line_properties_mapped["rating"] = line_properties_mapped.get("max_power_flow", 0.0)
-            line_properties_mapped["rating_up"] = line_properties_mapped.pop("max_power_flow", 0.0)
-            line_properties_mapped["rating_down"] = line_properties_mapped.pop("min_power_flow", 0.0)
+            line_properties_mapped["flow_limits"] = FromTo_ToFrom(
+                from_to=line_properties_mapped.pop("Max Flow", 0.0),
+                to_from=line_properties_mapped.pop("Min Flow", 0.0),
+            )
 
             if line_properties_mapped["rating"] is None:
                 logger.warning("Skipping disabled line {}", line)
@@ -625,21 +638,21 @@ class PlexosParser(PCMParser):
                 membership
                 for membership in lines_pivot_memberships
                 if (
-                    membership[2] == line["name"]
-                    and membership[5] == ClassEnum.Line.name
-                    and membership[7].replace(" ", "") == CollectionEnum.NodeFrom.name
+                    membership["parent"] == line["name"]
+                    and membership["parent_class_name"] == ClassEnum.Line.name
+                    and membership["collection_name"].replace(" ", "") == CollectionEnum.NodeFrom.name
                 )
-            )[3]
+            )["child"]
             from_bus = self.system.get_component(ACBus, from_bus_name)
             to_bus_name = next(
                 membership
                 for membership in lines_pivot_memberships
                 if (
-                    membership[2] == line["name"]
-                    and membership[5] == ClassEnum.Line.name
-                    and membership[7].replace(" ", "") == CollectionEnum.NodeTo.name
+                    membership["parent"] == line["name"]
+                    and membership["parent_class_name"] == ClassEnum.Line.name
+                    and membership["collection_name"].replace(" ", "") == CollectionEnum.NodeTo.name
                 )
-            )[3]
+            )["child"]
             to_bus = self.system.get_component(ACBus, to_bus_name)
             valid_fields["from_bus"] = from_bus
             valid_fields["to_bus"] = to_bus
@@ -664,8 +677,8 @@ class PlexosParser(PCMParser):
             logger.warning("No transformer objects found on the system.")
             return
 
-        lines_pivot_memberships = self.db.get_memberships(
-            *transformer_pivot["name"].to_list(), object_class=ClassEnum.Transformer
+        lines_pivot_memberships = self.db.get_object_memberships(
+            *transformer_pivot["name"].to_list(), class_enum=ClassEnum.Transformer
         )
         for transformer in transformer_pivot.iter_rows(named=True):
             transformer_properties_mapped = {
@@ -691,21 +704,21 @@ class PlexosParser(PCMParser):
                 membership
                 for membership in lines_pivot_memberships
                 if (
-                    membership[2] == transformer["name"]
-                    and membership[5] == ClassEnum.Transformer.name
-                    and membership[7].replace(" ", "") == CollectionEnum.NodeFrom.name
+                    membership["parent"] == transformer["name"]
+                    and membership["parent_class_name"] == ClassEnum.Transformer.name
+                    and membership["collection"].replace(" ", "") == CollectionEnum.NodeFrom.name
                 )
-            )[3]
+            )["child"]
             from_bus = self.system.get_component(ACBus, from_bus_name)
             to_bus_name = next(
                 membership
                 for membership in lines_pivot_memberships
                 if (
-                    membership[2] == transformer["name"]
-                    and membership[5] == ClassEnum.Transformer.name
-                    and membership[7].replace(" ", "") == CollectionEnum.NodeTo.name
+                    membership["parent"] == transformer["name"]
+                    and membership["parent_class_name"] == ClassEnum.Transformer.name
+                    and membership["collection"].replace(" ", "") == CollectionEnum.NodeTo.name
                 )
-            )[3]
+            )["child"]
             to_bus = self.system.get_component(ACBus, to_bus_name)
             valid_fields["from_bus"] = from_bus
             valid_fields["to_bus"] = to_bus
@@ -865,6 +878,12 @@ class PlexosParser(PCMParser):
             mapped_records = self._set_unit_capacity(mapped_records)
             if model_map.__name__ == HydroPumpedStorage.__name__:
                 mapped_records = self._get_storage_objects_attached(object_id, mapped_records)
+
+                # NOTE: Some Plexos models mighy have different up and down capacities. We need to parse those
+                # at some point as well.
+                mapped_records["storage_capacity"] = UpDown(
+                    up=mapped_records["storage_capacity"], down=mapped_records["storage_capacity"]
+                )
             if mapped_records is None:
                 logger.trace("Skipping disabled generator {}", generator_name)
                 # When unit availability is not set, we skip the generator
@@ -905,6 +924,11 @@ class PlexosParser(PCMParser):
                 ts_dict = {"solve_year": self.year}
                 for ts_name, ts in ts_fields.items():
                     ts.variable_name = ts_name
+
+                    # NOTE: This is fix to avoid mismatch with unit registry for custom units.
+                    if isinstance(ts.data, Quantity):
+                        # ts_dict["units"] = str(ts.data.units)
+                        ts.data = ts.data.magnitude
                     self.system.add_time_series(ts, generator, **ts_dict)
         return
 
@@ -938,22 +962,24 @@ class PlexosParser(PCMParser):
     def _add_buses_to_generators(self):
         # Add buses to generators
         generators = [generator["name"] for generator in self.system.to_records(Generator)]
-        generator_memberships = self.db.get_memberships(
+        generator_memberships = self.db.get_object_memberships(
             *generators,
-            object_class=ClassEnum.Generator,
-            collection=CollectionEnum.Nodes,
+            class_enum=ClassEnum.Generator,
+            collection_enum=CollectionEnum.Nodes,
         )
         for generator in self.system.get_components(Generator):
-            buses = [membership for membership in generator_memberships if membership[2] == generator.name]
+            buses = [
+                membership for membership in generator_memberships if membership["parent"] == generator.name
+            ]
             if buses:
                 for bus in buses:
                     try:
-                        bus_object = self.system.get_component(ACBus, name=bus[3])
+                        bus_object = self.system.get_component(ACBus, name=bus["child"])
                     except ISNotStored:
                         logger.warning(
                             "Skipping membership for generator:{} since reserve {} is not stored",
                             generator.name,
-                            buses[3],
+                            buses["child"],
                         )
                         continue
                     generator.bus = bus_object
@@ -962,25 +988,27 @@ class PlexosParser(PCMParser):
     def _add_generator_reserves(self):
         reserve_map = self.system.get_component(ReserveMap, name="contributing_generators")
         generators = [generator["name"] for generator in self.system.to_records(Generator)]
-        generator_memberships = self.db.get_memberships(
+        generator_memberships = self.db.get_object_memberships(
             *generators,
-            object_class=ClassEnum.Generator,
-            parent_class=ClassEnum.Reserve,
-            collection=CollectionEnum.Generators,
+            class_enum=ClassEnum.Generator,
+            parent_class_enum=ClassEnum.Reserve,
+            collection_enum=CollectionEnum.Generators,
         )
         for generator in self.system.get_components(Generator):
-            reserves = [membership for membership in generator_memberships if membership[3] == generator.name]
+            reserves = [
+                membership for membership in generator_memberships if membership["child"] == generator.name
+            ]
             if reserves:
                 # NOTE: This would get replaced if we have a method on infrasys
                 # that check if something exists on the system
                 for reserve in reserves:
                     try:
-                        reserve_object = self.system.get_component(Reserve, name=reserve[2])
+                        reserve_object = self.system.get_component(Reserve, name=reserve["parent"])
                     except ISNotStored:
                         logger.warning(
                             "Skipping membership for generator:{} since reserve {} is not stored",
                             generator.name,
-                            reserve[2],
+                            reserve["child"],
                         )
                         continue
                     reserve_map.mapping[reserve_object.name].append(generator.name)
@@ -1042,22 +1070,24 @@ class PlexosParser(PCMParser):
             msg = "No battery objects found on the system. Skipping adding membership to buses"
             logger.warning(msg)
             return
-        generator_memberships = self.db.get_memberships(
+        generator_memberships = self.db.get_object_memberships(
             *batteries,
-            object_class=ClassEnum.Battery,
-            collection=CollectionEnum.Nodes,
+            class_enum=ClassEnum.Battery,
+            collection_enum=CollectionEnum.Nodes,
         )
         for component in self.system.get_components(EnergyReservoirStorage):
-            buses = [membership for membership in generator_memberships if membership[2] == component.name]
+            buses = [
+                membership for membership in generator_memberships if membership["parent"] == component.name
+            ]
             if buses:
                 for bus in buses:
                     try:
-                        bus_object = self.system.get_component(ACBus, name=bus[3])
+                        bus_object = self.system.get_component(ACBus, name=bus["child"])
                     except ISNotStored:
                         logger.warning(
                             "Skipping membership for battery:{} since bus {} is not stored",
                             component.name,
-                            buses[3],
+                            buses["child"],
                         )
                         continue
                     component.bus = bus_object
@@ -1070,26 +1100,28 @@ class PlexosParser(PCMParser):
             msg = "No battery objects found on the system. Skipping adding reserve memberships"
             logger.warning(msg)
             return
-        generator_memberships = self.db.get_memberships(
+        generator_memberships = self.db.get_object_memberships(
             *batteries,
-            object_class=ClassEnum.Battery,
-            parent_class=ClassEnum.Reserve,
-            collection=CollectionEnum.Batteries,
+            class_enum=ClassEnum.Battery,
+            parent_class_enum=ClassEnum.Reserve,
+            collection_enum=CollectionEnum.Batteries,
         )
 
         for battery in self.system.get_components(EnergyReservoirStorage):
-            reserves = [membership for membership in generator_memberships if membership[3] == battery.name]
+            reserves = [
+                membership for membership in generator_memberships if membership["child"] == battery.name
+            ]
             if reserves:
                 # NOTE: This would get replaced if we have a method on infrasys
                 # that check if something exists on the system
                 for reserve in reserves:
                     try:
-                        reserve_object = self.system.get_component(Reserve, name=reserve[2])
+                        reserve_object = self.system.get_component(Reserve, name=reserve["parent"])
                     except ISNotStored:
                         logger.warning(
                             "Skipping membership for generator:{} since reserve {} is not stored",
                             battery.name,
-                            reserve[2],
+                            reserve["parent"],
                         )
                         continue
                     reserve_map.mapping[reserve_object.name].append(battery.name)
@@ -1153,26 +1185,28 @@ class PlexosParser(PCMParser):
         lines = [line["name"] for line in self.system.to_records(MonitoredLine)]
         if not lines:
             return
-        lines_memberships = self.db.get_memberships(
+        lines_memberships = self.db.get_object_memberships(
             *lines,
-            object_class=ClassEnum.Line,
-            parent_class=ClassEnum.Interface,
-            collection=CollectionEnum.Lines,
+            class_enum=ClassEnum.Line,
+            parent_class_enum=ClassEnum.Interface,
+            collection_enum=CollectionEnum.Lines,
         )
         for line in self.system.get_components(MonitoredLine):
             interface = next(
-                (membership for membership in lines_memberships if membership[3] == line.name), None
+                (membership for membership in lines_memberships if membership["child"] == line.name), None
             )
             if interface:
                 # NOTE: This would get replaced if we have a method on infrasys
                 # that check if something exists on the system
                 try:
-                    interface_object = self.system.get_component(TransmissionInterface, name=interface[2])
+                    interface_object = self.system.get_component(
+                        TransmissionInterface, name=interface["parent"]
+                    )
                 except ISNotStored:
                     logger.warning(
                         "Skipping membership for line:{} since interface {} is not stored",
                         line.name,
-                        interface[2],
+                        interface["parent"],
                     )
                     continue
                 tx_interface_map.mapping[interface_object.name].append(line.label)
@@ -1330,8 +1364,8 @@ class PlexosParser(PCMParser):
         """Create a SQLite representation of the XML."""
         if model_name is None:
             msg = "Required model name not found. Parser requires a model to parse from the Plexos database"
-            raise ModelError(msg)
-        # self.db = PlexosSQLite(xml_fname=xml_fpath)
+            raise R2XModelError(msg)
+        # self.db = PlexosDB(xml_fname=xml_fpath)
 
         logger.trace("Getting object_id for model={}", model_name)
         model_id_query = """
@@ -1350,10 +1384,10 @@ class PlexosParser(PCMParser):
         if len(model_id) > 1:
             msg = f"Multiple models with the same {model_name} returned. Check database or spelling."
             logger.debug(model_id)
-            raise ModelError(msg)
+            raise R2XModelError(msg)
         if not model_id:
             msg = f"Model `{model_name}` not found on the XML. Check spelling of the `model_name`."
-            raise ParserError(msg)
+            raise R2XParserError(msg)
         self.model_id = model_id[0][0]  # Unpacking tuple [(model_id,)]
 
         # NOTE: When doing performance updates this query could get some love.
@@ -1478,10 +1512,10 @@ class PlexosParser(PCMParser):
             if isinstance(active_power_max, SingleTimeSeries):
                 active_power_max = np.nanmax(active_power_max.data)
         active_power_limits_max = (active_power_max or record["base_power"]) * record["available"]
-        return MinMax(active_power_limits_min, active_power_limits_max)
+        return MinMax(min=active_power_limits_min, max=active_power_limits_max)
 
     def _plexos_table_data(self) -> list[tuple]:
-        sql_query = files("plexosdb.queries").joinpath("simple_object_query.sql").read_text()
+        sql_query = get_sql_query("simple_object_query.sql")
         object_data = self.db.query(sql_query)
         return object_data
 
@@ -1571,14 +1605,14 @@ class PlexosParser(PCMParser):
                 )
             else:
                 continue
-            bus_region_membership = self.db.get_memberships(
+            bus_region_membership = self.db.get_object_memberships(
                 region[0],
-                object_class=ClassEnum.Region,
-                parent_class=ClassEnum.Node,
-                collection=CollectionEnum.Region,
+                class_enum=ClassEnum.Region,
+                parent_class_enum=ClassEnum.Node,
+                collection_enum=CollectionEnum.Region,
             )
             for bus in bus_region_membership:
-                bus = self.system.get_component(ACBus, name=bus[2])
+                bus = self.system.get_component(ACBus, name=bus["parent"])
                 load = PowerLoad(name=f"{bus.name}", bus=bus, max_active_power=max_load)
                 self.system.add_component(load)
                 ts_dict = {"solve_year": self.year}
@@ -1586,20 +1620,37 @@ class PlexosParser(PCMParser):
                     self.system.add_time_series(max_active_power, load, **ts_dict)
         return
 
-    def _data_file_reader(self, fpath_str, csv_file_encoding="utf8"):
-        if encoding := self.config.feature_flags.get("csv_file_encoding"):
-            csv_file_encoding = encoding
-
+    def _data_file_reader(self, fpath_str: str, csv_file_encoding="utf8"):
         path = self.run_folder / Path(fpath_str)
         if "\\" in fpath_str:
             path = self.run_folder / PureWindowsPath(fpath_str)
 
+        if path in self._data_file_cache:
+            return path, self._data_file_cache[path], self._data_file_column_types[path]
+
+        if encoding := self.config.feature_flags.get("csv_file_encoding"):
+            csv_file_encoding = encoding
+
+        data_file = csv_handler(path, csv_file_encoding=csv_file_encoding)
+
+        column_type: DATAFILE_COLUMNS | None = get_column_enum(data_file.columns)
+        if column_type is None:
+            msg = f"Could not parse {path}. Time series format {data_file.columns=} not yet supported."
+            raise NotImplementedError(msg)
+
+        parsed_file = parse_data_file(column_type, data_file)
+
+        if "year" in parsed_file.columns:
+            parsed_file = pl_filter_by_year(parsed_file, year=self.year)
+
+            if parsed_file.is_empty():
+                logger.warning("No time series data specified for year filter. Year passed {}", self.year)
+
         if path not in self._data_file_cache:
-            data_file = csv_handler(path, csv_file_encoding=csv_file_encoding)
-            self._data_file_cache[path] = data_file
-        else:
-            data_file = self._data_file_cache.get(path)
-        return data_file, path
+            self._data_file_cache[path] = parsed_file
+            self._data_file_column_types[path] = column_type
+
+        return path, parsed_file, column_type
 
     def _data_file_handler(
         self,
@@ -1611,14 +1662,14 @@ class PlexosParser(PCMParser):
     ):
         """Read time varying data from a data file."""
         assert isinstance(self.year, int)
+        path, parsed_file, column_type = self._data_file_reader(fpath_str)
 
-        data_file, path = self._data_file_reader(fpath_str)
-        column_type = get_column_enum(data_file.columns)
-        if column_type is None:
-            msg = f"Time series format {data_file.columns=} not yet supported."
-            raise NotImplementedError(msg)
+        if "name" in parsed_file.columns:
+            cols = [col.lower() for col in [record_name, property_name, variable_name] if col]
+            parsed_file = parsed_file.filter(pl.col("name").str.to_lowercase().is_in(cols))
 
-        parsed_file = self._parse_data_file(data_file, record_name, property_name, column_type, variable_name)
+        if record_name in parsed_file.columns:
+            parsed_file = parsed_file.fiter(pl.col(record_name))
 
         if parsed_file.is_empty():
             msg = "Could not find record_name = {} or property_name = {} in fpath = {}. Check data file."
@@ -1679,6 +1730,7 @@ class PlexosParser(PCMParser):
             column_type == DATAFILE_COLUMNS.TS_YMDH
             or column_type == DATAFILE_COLUMNS.TS_NMDH
             or column_type == DATAFILE_COLUMNS.TS_NMCDH
+            or column_type == DATAFILE_COLUMNS.TS_NYMDH
         ):
             columns_to_check.append("hour")
         if column_type == DATAFILE_COLUMNS.TS_NM or column_type == DATAFILE_COLUMNS.TS_NMCDH:
@@ -1686,33 +1738,6 @@ class PlexosParser(PCMParser):
         if column_type == DATAFILE_COLUMNS.TS_NMCDH:
             columns_to_check.append("day")
         return columns_to_check
-
-    def _parse_data_file(
-        self,
-        data_file,
-        record_name: str,
-        property_name: str,
-        column_type: DATAFILE_COLUMNS,
-        variable_name: str | None = None,
-    ) -> pl.DataFrame:
-        """Parse and filter data based on record and property names."""
-        assert isinstance(self.year, int)
-        parsed_file = parse_data_file(column_type, data_file)
-
-        if "year" in parsed_file.columns:
-            parsed_file = pl_filter_year(parsed_file, year=self.year)
-
-            if parsed_file.is_empty():
-                logger.warning("No time series data specified for year filter. Year passed {}", self.year)
-
-        if "name" in parsed_file.columns:
-            cols = [col.lower() for col in [record_name, property_name, variable_name] if col]
-            parsed_file = parsed_file.filter(pl.col("name").str.to_lowercase().is_in(cols))
-
-        if record_name in parsed_file.columns:
-            parsed_file = parsed_file.fiter(pl.col(record_name))
-
-        return parsed_file
 
     def _get_single_value(
         self,
@@ -1818,7 +1843,7 @@ class PlexosParser(PCMParser):
                 property_with_timeslice = property_counts[property]
                 pattern_values = []
                 for timeslice in property_with_timeslice["timeslices"]:
-                    timeslice_object_id = self.db.get_object_id(timeslice, class_name=ClassEnum.Timeslice)
+                    timeslice_object_id = self.db.get_object_id(ClassEnum.Timeslice, name=timeslice)
                     timeslice_data = self._filter_by_object_id(timeslice_object_id)
                     pattern_values.append(
                         {
@@ -1870,7 +1895,7 @@ class PlexosParser(PCMParser):
                     value=data_file_value, variable_name=mapped_property_name, unit=unit
                 )
             case {"text": str(), "text_class_name": ClassEnum.Variable}:
-                nested_object_id = self.db.get_object_id(record["text"], class_name=ClassEnum.Variable)
+                nested_object_id = self.db.get_object_id(ClassEnum.Variable, name=record["text"])
                 nested_object_data = self._get_nested_object_data(nested_object_id)
                 if isinstance(nested_object_data, str):
                     value = (
@@ -1890,9 +1915,7 @@ class PlexosParser(PCMParser):
 
             # This case covers when the variable is used to scale a property that is nested on a data file
             case {"tag_datafile": str(), "tag_variable": str()}:
-                nested_object_id = self.db.get_object_id(
-                    record["tag_variable"], class_name=ClassEnum.Variable
-                )
+                nested_object_id = self.db.get_object_id(ClassEnum.Variable, name=record["tag_variable"])
                 nested_object_data = self._get_nested_object_data(nested_object_id)
                 if isinstance(nested_object_data, str):
                     nested_object_data = self._data_file_handler(
@@ -1918,9 +1941,7 @@ class PlexosParser(PCMParser):
                     data_file_value = prop_value
                 value = self._parse_value(data_file_value, variable_name=mapped_property_name, unit=unit)
             case {"tag_variable": str()}:
-                nested_object_id = self.db.get_object_id(
-                    record["tag_variable"], class_name=ClassEnum.Variable
-                )
+                nested_object_id = self.db.get_object_id(ClassEnum.Variable, name=record["tag_variable"])
                 nested_object_data = self._get_nested_object_data(nested_object_id)
                 if isinstance(nested_object_data, str):
                     value = self._data_file_handler(

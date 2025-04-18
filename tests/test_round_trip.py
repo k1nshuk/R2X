@@ -25,7 +25,10 @@ def test_round_trip(tmp_folder, reeds_data_folder):
         weather_year=2012,
     )
 
-    user_dict = {"plexos_category_map": reeds_infrasys_config.input_config.defaults["tech_to_fuel_pm"]}
+    user_dict = {
+        "plexos_category_map": reeds_infrasys_config.input_config.defaults["tech_to_fuel_pm"],
+        "fmap": {"xml_file": {"fname": tmp_folder / "from_reeds.xml"}},
+    }
     plexos_infrasys_config = Scenario.from_kwargs(
         name="from_plexos",
         input_model="plexos",
@@ -40,13 +43,13 @@ def test_round_trip(tmp_folder, reeds_data_folder):
     )
 
     # Export ReEDS to infrasys
-    orignal_system_fpath = tmp_folder / f"{reeds_infrasys_config.name}.json"
+    original_system_fpath = tmp_folder / f"{reeds_infrasys_config.name}.json"
     original_system, parser = run_parser(reeds_infrasys_config)
-    original_system.to_json(orignal_system_fpath)
+    original_system.to_json(original_system_fpath)
 
     # Export infrasys to plexos
 
-    deserialized_original = System.from_json(orignal_system_fpath)
+    deserialized_original = System.from_json(original_system_fpath)
     _ = run_exporter(infrasys_plexos_config, deserialized_original)
 
     # Export plexos to infrasys

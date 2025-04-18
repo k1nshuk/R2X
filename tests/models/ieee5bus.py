@@ -6,20 +6,22 @@ from infrasys.cost_curves import FuelCurve, UnitSystem
 from infrasys.function_data import LinearFunctionData
 from infrasys.time_series_models import SingleTimeSeries
 from infrasys.value_curves import InputOutputCurve
+
 from r2x.api import System
-from r2x.enums import PrimeMoversType, ThermalFuels, StorageTechs
+from r2x.enums import PrimeMoversType, StorageTechs, ThermalFuels
 from r2x.models import (
     ACBus,
     Area,
     EnergyReservoirStorage,
+    InputOutput,
     LoadZone,
+    MinMax,
     MonitoredLine,
     RenewableDispatch,
     ThermalStandard,
 )
 from r2x.models.costs import ThermalGenerationCost
 from r2x.units import Energy, Percentage, Time, ureg
-from r2x.models.core import MinMax, InputOutput
 
 
 def ieee5bus() -> System:
@@ -151,22 +153,58 @@ def ieee5bus() -> System:
     system.add_component(sundance)
 
     # Branch
-    branch_ab = MonitoredLine(name="line_ab", from_bus=bus_1, to_bus=bus_2, rating_up=400 * ureg.MW)
+    branch_ab = MonitoredLine(
+        name="line_ab",
+        active_power_flow=0.0,
+        reactive_power_flow=0.0,
+        from_bus=bus_1,
+        to_bus=bus_2,
+    )
     system.add_component(branch_ab)
 
-    branch_ad = MonitoredLine(name="line_ad", from_bus=bus_1, to_bus=bus_4, rating_up=400 * ureg.MW)
+    branch_ad = MonitoredLine(
+        name="line_ad",
+        active_power_flow=0.0,
+        reactive_power_flow=0.0,
+        from_bus=bus_1,
+        to_bus=bus_4,
+    )
     system.add_component(branch_ad)
 
-    branch_ae = MonitoredLine(name="line_ae", from_bus=bus_1, to_bus=bus_5, rating_up=400 * ureg.MW)
+    branch_ae = MonitoredLine(
+        name="line_ae",
+        active_power_flow=0.0,
+        reactive_power_flow=0.0,
+        from_bus=bus_1,
+        to_bus=bus_5,
+    )
     system.add_component(branch_ae)
 
-    branch_bc = MonitoredLine(name="line_bc", from_bus=bus_2, to_bus=bus_3, rating_up=400 * ureg.MW)
+    branch_bc = MonitoredLine(
+        name="line_bc",
+        active_power_flow=0.0,
+        reactive_power_flow=0.0,
+        from_bus=bus_2,
+        to_bus=bus_3,
+    )
     system.add_component(branch_bc)
 
-    branch_cd = MonitoredLine(name="line_cd", from_bus=bus_3, to_bus=bus_4, rating_up=400 * ureg.MW)
+    branch_cd = MonitoredLine(
+        name="line_cd",
+        active_power_flow=0.0,
+        reactive_power_flow=0.0,
+        from_bus=bus_3,
+        to_bus=bus_4,
+    )
     system.add_component(branch_cd)
 
-    branch_ed = MonitoredLine(name="line_ed", from_bus=bus_5, to_bus=bus_4, rating_up=240 * ureg.MW)
+    branch_ed = MonitoredLine(
+        name="line_ed",
+        active_power_flow=0.0,
+        reactive_power_flow=0.0,
+        from_bus=bus_5,
+        to_bus=bus_4,
+    )
     system.add_component(branch_ed)
 
     return system

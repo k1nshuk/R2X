@@ -30,6 +30,7 @@ class DATAFILE_COLUMNS(Enum):  # noqa: N801
     NV = ("name", "value")
     Y = ("year",)
     YV = ("year", "value")
+    YMD = ("year", "month", "day")
     YearValue = ("Year", "Value")
     TS_datetime = ("datetime",)
     TS_DateTime = ("DateTime",)
@@ -259,6 +260,12 @@ def parse_yv(data_file):
     return data_file
 
 
+def parse_ymd(data_file):
+    data_file = data_file.melt(id_vars=["year", "month", "day"], variable_name="name")
+    data_file = data_file.sort(["year", "month", "day", "name"])
+    return data_file
+
+
 def parse_ts_datetime(data_file):
     data_file = data_file.with_columns(datetime=pl.col("datetime").str.to_datetime("%Y-%m-%dt%H:%M"))
     data_file = data_file.with_columns(year=pl.col("datetime").dt.year())
@@ -302,8 +309,10 @@ def parse_ts_nymdpv(data_file):
 
 
 def parse_ts_nmdh(data_file):
-    data_file = data_file.melt(id_vars=["name", "month", "day"], variable_name="hour")
-    return data_file
+    output_data_file = data_file.melt(id_vars=["name", "month", "day"], variable_name="hour")
+    output_data_file = output_data_file.with_columns(pl.col("hour").cast(pl.Int8))
+    output_data_file = output_data_file.sort(["name", "month", "day", "hour"])
+    return output_data_file
 
 
 def parse_ts_ym(data_file):
@@ -348,9 +357,10 @@ def parse_ts_ymdh(data_file):
 
 
 def parse_ts_nymdh(data_file):
-    data_file = data_file.melt(id_vars=["name", "year", "month", "day"], variable_name="hour")
-    data_file = data_file.with_columns(pl.col("hour").cast(pl.Int8))
-    return data_file
+    output_data_file = data_file.melt(id_vars=["name", "year", "month", "day"], variable_name="hour")
+    output_data_file = output_data_file.with_columns(pl.col("hour").cast(pl.Int8))
+    output_data_file = output_data_file.sort(["name", "year", "month", "day", "hour"])
+    return output_data_file
 
 
 def parse_ts_nmcdh(data_file: pl.DataFrame) -> pl.DataFrame:
@@ -488,6 +498,9 @@ def time_slice_handler(
     if isinstance(hourly_time_index, np.ndarray):
         hourly_time_index = hourly_time_index.astype(datetime).flatten().tolist()
 
+    assert isinstance(hourly_time_index, Sequence) and all(
+        isinstance(dt, datetime) for dt in hourly_time_index
+    )
     months = np.array([dt.month for dt in hourly_time_index])
     # hours = np.array([dt.hour for dt in hourly_time_index])
     month_datetime_series = np.zeros(len(hourly_time_index), dtype=float)

@@ -27,16 +27,17 @@
   "canada_szn_frac": {
     "column_mapping": {
       "*szn": "season",
-      "frac": "value"
+      "frac_weighted": "value"
     },
     "description": "fraction of annual imports that occur in each season",
-    "fname": "can_imports_szn_frac.csv",
+    "fname": "can_import_szn_frac.csv",
     "input": true,
     "optional": true,
     "units": "-"
   },
   "cf": {
     "description": "Time series profiles for renewable generators.",
+    "filter_by_weather_year": true,
     "fname": "recf.h5",
     "input": true,
     "optional": false,
@@ -57,7 +58,7 @@
   "co2_cap": {
     "column_mapping": {
       "*t": "year",
-      "default": "value"
+      "tonne_per_year": "value"
     },
     "description": "CO2 annual cap per year",
     "fname": "co2_cap.csv",
@@ -137,6 +138,7 @@
   "emission_rates": {
     "column_mapping": {
       "eall": "emission_type",
+      "etype": "emission_source",
       "i": "tech",
       "r": "region",
       "t": "year",
@@ -310,9 +312,9 @@
   },
   "load": {
     "description": "Load profile per ReEDS region.",
+    "filter_by_weather_year": true,
     "fname": "load.h5",
     "input": true,
-    "optional": false,
     "units": "MW"
   },
   "new_capacity": {
@@ -500,7 +502,6 @@
   "years": {
     "column_mapping": {},
     "fname": "modeledyears.csv",
-    "input": true,
-    "optional": true
+    "use_filter_functions": false
   }
 }
