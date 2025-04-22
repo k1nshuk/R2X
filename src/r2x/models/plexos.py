@@ -90,7 +90,7 @@ class PlexosGenerator(Device):
     ) = None
     pump_efficiency: (
         Annotated[
-            Percentage
+            Percentage,
             Field(description="Efficiency of the pump in percent.",)
         ]
         | None
@@ -109,7 +109,7 @@ class PlexosGenerator(Device):
     generator_commit: Annotated[
         int,
         Field(
-            ge=-1
+            ge=-1,
             description=("Number of units that should be committed. -1 for any period menas the unit commitment is optimized the ususal way.")
         )
     ] | None = None
