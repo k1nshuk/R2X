@@ -54,6 +54,9 @@ class FuelPrice(BaseQuantity):
 class VOMPrice(BaseQuantity):
     __base_unit__ = "usd/kWh"
 
+class DSPBidPrice(BaseQuantity):
+    __base_unit__ = "usd/MWh"
+
 
 class Energy(BaseQuantity):
     __base_unit__ = "watthour"
