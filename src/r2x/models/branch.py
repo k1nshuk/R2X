@@ -9,6 +9,7 @@ from pydantic import Field, field_serializer, NonNegativeFloat, NonPositiveFloat
 from r2x.models.core import Device
 from r2x.models.named_tuples import FromTo_ToFrom, MinMax
 from r2x.models.topology import ACBus, Arc, Area, DCBus
+from r2x.models.plexos.transformers import PlexosTransformer
 from r2x.units import ActivePower, Percentage
 
 
@@ -120,6 +121,21 @@ class Transformer2W(ACBranch):
             reactive_power_flow=100,
         )
 
+def create_plexos_transformer_2w(transformer: Transformer2W) -> "PlexosTransformer":
+    # Check if available
+    if transformer.available is True:
+        forced_outage_rate = Percentage(0.0, "%")
+    else:
+        forced_outage_rate = Percentage(100.0, "%")
+
+
+    return PlexosTransformer(
+        name = transformer.name,
+        rating = transformer.rating,
+        resistance=transformer.r,
+        reactance=transformer.x,
+        forced_outage_rate = forced_outage_rate,
+    )
 
 class TapTransformer(ACBranch):
     active_power_flow: NonNegativeFloat
@@ -136,6 +152,22 @@ class TapTransformer(ACBranch):
             ),
         ),
     ]
+
+def create_plexos_tap_tansformer(transformer: TapTransformer) -> "PlexosTransformer":
+    # Check if available
+    if transformer.available is True:
+        forced_outage_rate = Percentage(0.0, "%")
+    else:
+        forced_outage_rate = Percentage(100.0, "%")
+
+    return PlexosTransformer(
+        name = transformer.name,
+        rating = transformer.rating,
+        resistance=transformer.r,
+        reactance=transformer.x,
+        forced_outage_rate = forced_outage_rate,
+        ac_tap_ratio=transformer.tap
+    )
 
 
 class PhaseShiftingTransformer(ACBranch):
@@ -157,6 +189,21 @@ class PhaseShiftingTransformer(ACBranch):
     # primary_shunt: float | None = None
     phase_angle_limits: MinMax
 
+def create_plexos_phase_shifting_transformer(infrasys_transformer: PhaseShiftingTransformer) -> PlexosTransformer:
+    # Check if available
+    if infrasys_transformer.available is True:
+        forced_outage_rate = Percentage(0.0, "%")
+    else:
+        forced_outage_rate = Percentage(100.0, "%")
+
+    return PlexosTransformer(
+        name = infrasys_transformer.name,
+        rating = infrasys_transformer.rating,
+        resistance=infrasys_transformer.r,
+        reactance=infrasys_transformer.x,
+        forced_outage_rate = forced_outage_rate,
+        ac_fixed_shift_angle=infrasys_transformer.angle
+    )
 
 class DCBranch(Branch):
     """Class representing a DC connection between components."""

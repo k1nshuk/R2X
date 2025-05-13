@@ -40,9 +40,12 @@ from r2x.models import (
     Reserve,
     ThermalStandard,
     Transformer2W,
+    TapTransformer,
+    PhaseShiftingTransformer,
     TransmissionInterface,
 )
-from r2x.models.branch import Line
+from r2x.models.plexos.transformers import PlexosTransformer
+from r2x.models.branch import Line, create_plexos_transformer_2w, create_plexos_tap_tansformer, create_plexos_phase_shifting_transformer
 from r2x.models.utils import Constraint
 from r2x.units import get_magnitude
 from r2x.utils import custom_attrgetter, get_enum_from_string, read_json
@@ -539,19 +542,31 @@ class PlexosExporter(BaseExporter):
             )
         return
 
+    def _create_plexos_transformers(self) -> None:
+        # We will loop over all different types of transformers no need for conditionals
+        for transformer in self.system.get_components(Transformer2W):
+            p_transformer = create_plexos_transformer_2w(transformer)
+            self.system.add_component(p_transformer)
+        for transformer in self.system.get_components(TapTransformer):
+            p_transformer = create_plexos_tap_tansformer(transformer)
+            self.system.add_component(p_transformer)
+        for transformer in self.system.get_components(PhaseShiftingTransformer):
+            p_transformer = create_plexos_phase_shifting_transformer(transformer)
+            self.system.add_component(p_transformer)
+
     def add_transformers(self) -> None:
         """Add Transformer objects to the database."""
-        self.add_component_category(Transformer2W, class_enum=ClassEnum.Transformer)
+        self.add_component_category(PlexosTransformer, class_enum=ClassEnum.Transformer)
         self.bulk_insert_objects(
-            Transformer2W, class_enum=ClassEnum.Transformer, collection_enum=CollectionEnum.Transformers
+            PlexosTransformer, class_enum=ClassEnum.Transformer, collection_enum=CollectionEnum.Transformers
         )
         self.insert_component_properties(
-            Transformer2W,
+            PlexosTransformer,
             parent_class=ClassEnum.System,
             child_class=ClassEnum.Transformer,
             collection=CollectionEnum.Transformers,
         )
-        for transformer in self.system.get_components(Transformer2W):
+        for transformer in self.system.get_components(PlexosTransformer):
             self._db_mgr.add_membership(
                 parent_object_name=transformer.name,
                 child_object_name=transformer.from_bus.name,

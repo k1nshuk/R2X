@@ -2,7 +2,6 @@
 from typing import Annotated, List, Union
 from pydantic import Field, NonNegativeFloat, NonNegativeInt, NonPositiveInt
 from r2x.models.core import Device
-from r2x.models.branch import Transformer2W, TapTransformer, PhaseShiftingTransformer
 from r2x.units import Angle, ActivePower, Percentage
 
 class PlexosTransformer(Device):
@@ -348,53 +347,53 @@ class PlexosTransformer(Device):
             susceptance=0.0,
         )
     
-    @classmethod
-    def create_plexos_transformer_2w(transformer: Transformer2W) -> "PlexosTransformer":
-        # Check if available
-        if transformer.available is True:
-            forced_outage_rate = Percentage(0.0, "%")
-        else:
-            forced_outage_rate = Percentage(100.0, "%")
+    # @classmethod
+    # def create_plexos_transformer_2w(transformer: Transformer2W) -> "PlexosTransformer":
+    #     # Check if available
+    #     if transformer.available is True:
+    #         forced_outage_rate = Percentage(0.0, "%")
+    #     else:
+    #         forced_outage_rate = Percentage(100.0, "%")
 
 
-        return PlexosTransformer(
-            name = transformer.name,
-            rating = transformer.rating,
-            resistance=transformer.r,
-            reactance=transformer.x,
-            forced_outage_rate = forced_outage_rate,
-        )
+    #     return PlexosTransformer(
+    #         name = transformer.name,
+    #         rating = transformer.rating,
+    #         resistance=transformer.r,
+    #         reactance=transformer.x,
+    #         forced_outage_rate = forced_outage_rate,
+    #     )
     
-    @classmethod
-    def create_plexos_tap_tansformer(transformer: TapTransformer) -> "PlexosTransformer":
-        # Check if available
-        if transformer.available is True:
-            forced_outage_rate = Percentage(0.0, "%")
-        else:
-            forced_outage_rate = Percentage(100.0, "%")
+    # @classmethod
+    # def create_plexos_tap_tansformer(transformer: TapTransformer) -> "PlexosTransformer":
+    #     # Check if available
+    #     if transformer.available is True:
+    #         forced_outage_rate = Percentage(0.0, "%")
+    #     else:
+    #         forced_outage_rate = Percentage(100.0, "%")
 
-        return PlexosTransformer(
-            name = transformer.name,
-            rating = transformer.rating,
-            resistance=transformer.r,
-            reactance=transformer.x,
-            forced_outage_rate = forced_outage_rate,
-            ac_tap_ratio=transformer.tap
-        )
+    #     return PlexosTransformer(
+    #         name = transformer.name,
+    #         rating = transformer.rating,
+    #         resistance=transformer.r,
+    #         reactance=transformer.x,
+    #         forced_outage_rate = forced_outage_rate,
+    #         ac_tap_ratio=transformer.tap
+    #     )
     
-    @classmethod
-    def create_plexos_phase_shifting_transformer(transformer: PhaseShiftingTransformer) -> "PlexosTransformer":
-        # Check if available
-        if transformer.available is True:
-            forced_outage_rate = Percentage(0.0, "%")
-        else:
-            forced_outage_rate = Percentage(100.0, "%")
+    # @classmethod
+    # def create_plexos_phase_shifting_transformer(transformer: PhaseShiftingTransformer) -> "PlexosTransformer":
+    #     # Check if available
+    #     if transformer.available is True:
+    #         forced_outage_rate = Percentage(0.0, "%")
+    #     else:
+    #         forced_outage_rate = Percentage(100.0, "%")
 
-        return PlexosTransformer(
-            name = transformer.name,
-            rating = transformer.rating,
-            resistance=transformer.r,
-            reactance=transformer.x,
-            forced_outage_rate = forced_outage_rate,
-            ac_fixed_shift_angle=transformer.angle
-        )
+    #     return PlexosTransformer(
+    #         name = transformer.name,
+    #         rating = transformer.rating,
+    #         resistance=transformer.r,
+    #         reactance=transformer.x,
+    #         forced_outage_rate = forced_outage_rate,
+    #         ac_fixed_shift_angle=transformer.angle
+    #     )

@@ -273,548 +273,588 @@ class PlexosNode(Bus):
         ),
     ] = 0.0
 
-    # Node virtual emissions input properties
-    emission_charge: Annotated[
-        float,
-        Field(
-            alias="Emission Charge",
-            description="Emission charge for emissions consumed at the node in a virtual emission network in $/kg or $/lb",
-        ),
-    ] = 0.0
-    max_emissions: Annotated[
-        float,
-        Field(
-            alias="Max Emissions",
-            description="Maximum amount of emissions consumed at the node in a virtual emission network",
-        ),
-    ] = 1.e30
 
-    # Node hubs input properties
-    pricing_weight: Annotated[
-        float,
-        Field(
-            alias="Pricing Weight",
-            description="Wheeling charge for exports to the zone",
-        ),
-    ] = 1.0
+    @classmethod
+    def example(cls) -> "PlexosNode":
+        """Create an example PlexosNode."""
+        return PlexosNode(
+            name="ExampleNode",
+            latitude=0.0,
+            longitude=0.0,
+            ac_reactive_power=ApparentPower(0.0, "MVAr"),
+            ac_voltage_magnitude=1.0,
+            allow_dump_energy=0,
+            allow_unserved_energy=False,
+            always_calculate_ptdf=False,
+            dsp_bid_price=DSPBidPrice(0.0, "USD/MWh"),
+            dsp_bid_quantity=ActivePower(0.0, "MW"),
+            dsp_bid_ratio=Percentage(0.0, "%"),
+            enable_atc_calculation=0,
+            fixed_generation=ActivePower(0.0, "MW"),
+            fixed_load=ActivePower(0.0, "MW"),
+            formulate_load=False,
+            is_slack_bus=False,
+            is_unmapped_resource_bus=False,
+            load=ActivePower(0.0, "MW"),
+            load_participation_factor=1.0,
+            maintenance_factor=1.0,
+            max_maintenance=ActivePower(1.e30, "MW"),
+            max_net_injection=ActivePower(1.e30, "MW"),
+            # max_net_offtake=ActivePower(1.e30, "MW"),
+            max_unserved_energy=ActivePower(0.0, "MW"),
+            min_capacity_reserve_margin=Percentage(0.0, "%"),
+            min_capacity_reserves=ActivePower(-1.e30, "MW"),
+            must_report=False,
+            price=NonNegativeFloat(0.0),
+            rating=ApparentPower(1.e30, "MW"),
+            reference_generation=ActivePower(1.0, "MW"),
+            reference_load=ActivePower(1.0, "MW"),
+            units=NonNegativeInt(1),
+            voltage=NonNegativeFloat(1.0),
+        )
 
-    # Node companies input properties
-    load_share: Annotated[
-        Percentage,
-        Field(
-            alias="Load Share",
-            description="Percentage share of load ownership",
-            ge=0.0,
-            le=100.0
-        ),
-    ] = Percentage(100.0, "%")
+# # TODO: Node Virtual Emissions input properties
+# # TODO: Node Market input properties
+# # Node virtual emissions input properties
+# emission_charge: Annotated[
+#     float,
+#     Field(
+#         alias="Emission Charge",
+#         description="Emission charge for emissions consumed at the node in a virtual emission network in $/kg or $/lb",
+#     ),
+# ] = 0.0
+# max_emissions: Annotated[
+#     float,
+#     Field(
+#         alias="Max Emissions",
+#         description="Maximum amount of emissions consumed at the node in a virtual emission network",
+#     ),
+# ] = 1.e30
 
-    # Node facilities input properties
-    consumption_coefficient: Annotated[
-        float,
-        Field(
-            alias="Consumption Coefficient",
-            description="Electric Load for each unit of consumption",
-        ),
-    ] = 0.0
-    facility_node_type: Annotated[
-        NonNegativeInt,
-        Field(
-            alias="Facility Node Type",
-            description="Specifies whether Node is an input or an output for the Facility",
-            ge=0,
-            le=2
-        ),
-    ] = 0
-    production_coefficient: Annotated[
-        float,
-        Field(
-            alias="Production Coefficient",
-            description="Electric Generation for each unit of production",
-        ),
-    ] = 0.0
-    units_coefficient: Annotated[
-        float,
-        Field(
-            alias="Units Coefficient",
-            description="Electric Load for each installed unit",
-        ),
-    ] = 0.0
-    units_operating_coefficient: Annotated[
-        float,
-        Field(
-            alias="Units Operating Coefficient",
-            description="Electric Load for each operating unit",
-        ),
-    ] = 0.0
+# # Node hubs input properties
+# pricing_weight: Annotated[
+#     float,
+#     Field(
+#         alias="Pricing Weight",
+#         description="Wheeling charge for exports to the zone",
+#     ),
+# ] = 1.0
 
-    # Node constraints input properties
-    dump_energy_coefficient: Annotated[
-        ActivePower,
-        Field(
-            alias="Dump Energy Coefficient",
-            description="Coefficient of dump energy (over generation)",
-        ),
-    ] = ActivePower(0.0, "MW")
-    
-    generation_coefficient: Annotated[
-        ActivePower,
-        Field(
-            alias="Generation Coefficient",
-            description="Coefficient of node generation",
-        ),
-    ] = ActivePower(0.0, "MW")
-    
-    load_coefficient: Annotated[
-        ActivePower,
-        Field(
-            alias="Load Coefficient",
-            description="Coefficient of node load",
-        ),
-    ] = ActivePower(0.0, "MW")
-    
-    mlf_coefficient: Annotated[
-        float,
-        Field(
-            alias="MLF Coefficient",
-            description="Coefficient of marginal loss factor",
-        ),
-    ] = 0.0
-    
-    net_injection_coefficient: Annotated[
-        ActivePower,
-        Field(
-            alias="Net Injection Coefficient",
-            description="Coefficient of node net injection",
-        ),
-    ] = ActivePower(0.0, "MW")
-    
-    net_load_coefficient: Annotated[
-        ActivePower,
-        Field(
-            alias="Net Load Coefficient",
-            description="Coefficient of load net of unserved and dump energy",
-        ),
-    ] = ActivePower(0.0, "MW")
-    
-    phase_angle_coefficient: Annotated[
-        float,
-        Field(
-            alias="Phase Angle Coefficient",
-            description="Coefficient of node phase angle in degrees",
-        ),
-    ] = 0.0
-    
-    unserved_energy_coefficient: Annotated[
-        ActivePower,
-        Field(
-            alias="Unserved Energy Coefficient",
-            description="Coefficient of unserved energy",
-        ),
-    ] = ActivePower(0.0, "MW")
+# # Node companies input properties
+# load_share: Annotated[
+#     Percentage,
+#     Field(
+#         alias="Load Share",
+#         description="Percentage share of load ownership",
+#         ge=0.0,
+#         le=100.0
+#     ),
+# ] = Percentage(100.0, "%")
 
-    # Node decision variables input properties
-    net_injection_definition_coefficient: Annotated[
-        ActivePower,
-        Field(
-            alias="Net Injection Definition Coefficient",
-            description="Coefficient of Decision Variable in Node net injection definition equation",
-        ),
-    ] = ActivePower(0.0, "MW")
+# # Node facilities input properties
+# consumption_coefficient: Annotated[
+#     float,
+#     Field(
+#         alias="Consumption Coefficient",
+#         description="Electric Load for each unit of consumption",
+#     ),
+# ] = 0.0
+# facility_node_type: Annotated[
+#     NonNegativeInt,
+#     Field(
+#         alias="Facility Node Type",
+#         description="Specifies whether Node is an input or an output for the Facility",
+#         ge=0,
+#         le=2
+#     ),
+# ] = 0
+# production_coefficient: Annotated[
+#     float,
+#     Field(
+#         alias="Production Coefficient",
+#         description="Electric Generation for each unit of production",
+#     ),
+# ] = 0.0
+# units_coefficient: Annotated[
+#     float,
+#     Field(
+#         alias="Units Coefficient",
+#         description="Electric Load for each installed unit",
+#     ),
+# ] = 0.0
+# units_operating_coefficient: Annotated[
+#     float,
+#     Field(
+#         alias="Units Operating Coefficient",
+#         description="Electric Load for each operating unit",
+#     ),
+# ] = 0.0
 
-    # Node conditions input properties
-    condition_load_coefficient: Annotated[
-        ActivePower,
-        Field(
-            alias="Load Coefficient",
-            description="Coefficient of node demand in condition",
-        ),
-    ] = ActivePower(0.0, "MW")
-    
-    condition_unserved_energy_coefficient: Annotated[
-        ActivePower,
-        Field(
-            alias="Unserved Energy Coefficient",
-            description="Coefficient of unserved energy in condition",
-        ),
-    ] = ActivePower(0.0, "MW")
+# # Node constraints input properties
+# dump_energy_coefficient: Annotated[
+#     ActivePower,
+#     Field(
+#         alias="Dump Energy Coefficient",
+#         description="Coefficient of dump energy (over generation)",
+#     ),
+# ] = ActivePower(0.0, "MW")
 
-    # Node output properties
-    ac_mismatch: Annotated[
-        ApparentPower,
-        Field(
-            alias="AC Mismatch - MVA",
-            description="The magnitude of the complex power mismatch between the left- and right-hand sides of the AC power balance equation",
-        ),
-    ] = ApparentPower(0.0, "MVA")
-    
-    battery_generation: Annotated[
-        ActivePower,
-        Field(
-            alias="Battery Generation - MW",
-            description="Generation from batteries",
-        ),
-    ] = ActivePower(0.0, "MW")
-    
-    battery_load: Annotated[
-        ActivePower,
-        Field(
-            alias="Battery Load - MW",
-            description="Charging load from batteries",
-        ),
-    ] = ActivePower(0.0, "MW")
-    
-    capacity_reserves: Annotated[
-        ActivePower,
-        Field(
-            alias="Capacity Reserves - MW",
-            description="Capacity reserves (net of Peak Load)",
-        ),
-    ] = ActivePower(0.0, "MW")
-    
-    charging_station_deferred_load: Annotated[
-        ActivePower,
-        Field(
-            alias="Charging Station Deferred Load - MW",
-            description="Load from Charging Stations deferred",
-        ),
-    ] = ActivePower(0.0, "MW")
-    
-    charging_station_generation: Annotated[
-        ActivePower,
-        Field(
-            alias="Charging Station Generation - MW",
-            description="Generation from Charging Stations",
-        ),
-    ] = ActivePower(0.0, "MW")
-    
-    charging_station_hours_deferred: Annotated[
-        Time,
-        Field(
-            alias="Charging Station Hours Deferred - h",
-            description="Average hours Charging Station load is deferred in the period",
-        ),
-    ] = Time(0.0, "h")
-    
-    charging_station_load: Annotated[
-        ActivePower,
-        Field(
-            alias="Charging Station Load - MW",
-            description="Load from Charging Stations",
-        ),
-    ] = ActivePower(0.0, "MW")
-    
-    cleared_dsp_bid_cost: Annotated[
-        float,
-        Field(
-            alias="Cleared DSP Bid Cost - $",
-            description="Value of cleared demand-side participation bids",
-        ),
-    ] = 0.0
-    
-    cleared_dsp_bid_price: Annotated[
-        DSPBidPrice,
-        Field(
-            alias="Cleared DSP Bid Price - $/MWh",
-            description="Price of marginal demand-side participation bid band",
-        ),
-    ] = DSPBidPrice(0.0, "USD/MWh")
-    
-    congestion_charge: Annotated[
-        float,
-        Field(
-            alias="Congestion Charge - $/MWh",
-            description="Congestion component of locational marginal price",
-        ),
-    ] = 0.0
-    
-    contract_generation_capacity: Annotated[
-        ActivePower,
-        Field(
-            alias="Contract Generation Capacity - MW",
-            description="Physical contract generation capacity",
-        ),
-    ] = ActivePower(0.0, "MW")
-    
-    contract_load_obligation: Annotated[
-        ActivePower,
-        Field(
-            alias="Contract Load Obligation - MW",
-            description="Physical contract load obligation",
-        ),
-    ] = ActivePower(0.0, "MW")
-    
-    curtailable_load: Annotated[
-        ActivePower,
-        Field(
-            alias="Curtailable Load - MW",
-            description="Curtailable (dispatchable) load",
-        ),
-    ] = ActivePower(0.0, "MW")
-    
-    customer_load: Annotated[
-        ActivePower,
-        Field(
-            alias="Customer Load - MW",
-            description="Load served to customers at the node",
-        ),
-    ] = ActivePower(0.0, "MW")
-    
-    demand_curtailed: Annotated[
-        ActivePower,
-        Field(
-            alias="Demand Curtailed - MW",
-            description="Demand-side participation bids cleared",
-        ),
-    ] = ActivePower(0.0, "MW")
-    
-    discrete_maintenance: Annotated[
-        ActivePower,
-        Field(
-            alias="Discrete Maintenance - MW",
-            description="Discrete maintenance (defined by Units Out)",
-        ),
-    ] = ActivePower(0.0, "MW")
-    
-    distributed_maintenance: Annotated[
-        ActivePower,
-        Field(
-            alias="Distributed Maintenance - MW",
-            description="Maintenance notionally allocated to period",
-        ),
-    ] = ActivePower(0.0, "MW")
-    
-    dump_energy: Annotated[
-        ActivePower,
-        Field(
-            alias="Dump Energy - MW",
-            description="Dump energy (over generation)",
-        ),
-    ] = ActivePower(0.0, "MW")
-    
-    edns: Annotated[
-        ActivePower,
-        Field(
-            alias="EDNS - MW",
-            description="Expected Demand Not Served",
-        ),
-    ] = ActivePower(0.0, "MW")
-    
-    eens: Annotated[
-        Energy,
-        Field(
-            alias="EENS - MWh",
-            description="Expected Energy Not Served",
-        ),
-    ] = Energy(0.0, "MWh")
-    
-    energy_charge: Annotated[
-        float,
-        Field(
-            alias="Energy Charge - $/MWh",
-            description="Energy component of locational marginal price",
-        ),
-    ] = 0.0
-    
-    export_capacity: Annotated[
-        ActivePower,
-        Field(
-            alias="Export Capacity - MW",
-            description="Total export capacity from the Node",
-        ),
-    ] = ActivePower(0.0, "MW")
-    
-    exports: Annotated[
-        ActivePower,
-        Field(
-            alias="Exports - MW",
-            description="Exports from the node",
-        ),
-    ] = ActivePower(0.0, "MW")
-    
-    facility_generation: Annotated[
-        ActivePower,
-        Field(
-            alias="Facility Generation - MW",
-            description="Generation from connected Facilities",
-        ),
-    ] = ActivePower(0.0, "MW")
-    
-    facility_load: Annotated[
-        ActivePower,
-        Field(
-            alias="Facility Load - MW",
-            description="Load from connected Facilities",
-        ),
-    ] = ActivePower(0.0, "MW")
-    
-    flow: Annotated[
-        ActivePower,
-        Field(
-            alias="Flow - MW",
-            description="Flow through the node",
-        ),
-    ] = ActivePower(0.0, "MW")
-    
-    import_capacity: Annotated[
-        ActivePower,
-        Field(
-            alias="Import Capacity - MW",
-            description="Total import capacity to the Node",
-        ),
-    ] = ActivePower(0.0, "MW")
-    
-    imports: Annotated[
-        ActivePower,
-        Field(
-            alias="Imports - MW",
-            description="Imports to the node",
-        ),
-    ] = ActivePower(0.0, "MW")
-    
-    injection_mismatch: Annotated[
-        ActivePower,
-        Field(
-            alias="Injection Mismatch - MW",
-            description="Absolute value of mismatch of injection due to PTDF threshold",
-        ),
-    ] = ActivePower(0.0, "MW")
-    
-    losses: Annotated[
-        ActivePower,
-        Field(
-            alias="Losses - MW",
-            description="Losses allocated to the node",
-        ),
-    ] = ActivePower(0.0, "MW")
-    
-    marginal_loss_charge: Annotated[
-        float,
-        Field(
-            alias="Marginal Loss Charge - $/MWh",
-            description="Marginal loss component of locational marginal price",
-        ),
-    ] = 0.0
-    
-    marginal_loss_factor: Annotated[
-        float,
-        Field(
-            alias="Marginal Loss Factor",
-            description="Marginal loss factor to slack bus(es)",
-        ),
-    ] = 0.0
-    
-    min_load: Annotated[
-        ActivePower,
-        Field(
-            alias="Min Load - MW",
-            description="Minimum load across the current period",
-        ),
-    ] = ActivePower(0.0, "MW")
-    
-    native_load: Annotated[
-        ActivePower,
-        Field(
-            alias="Native Load - MW",
-            description="Native load",
-        ),
-    ] = ActivePower(0.0, "MW")
-    
-    net_capacity_interchange: Annotated[
-        ActivePower,
-        Field(
-            alias="Net Capacity Interchange - MW",
-            description="Export Capability - Import Capability",
-        ),
-    ] = ActivePower(0.0, "MW")
-    
-    net_contract_load: Annotated[
-        ActivePower,
-        Field(
-            alias="Net Contract Load - MW",
-            description="Net of contract sales and generation",
-        ),
-    ] = ActivePower(0.0, "MW")
-    
-    net_dc_export: Annotated[
-        ActivePower,
-        Field(
-            alias="Net DC Export - MW",
-            description="Export from the node on DC lines net of losses",
-        ),
-    ] = ActivePower(0.0, "MW")
-    
-    net_injection: Annotated[
-        ActivePower,
-        Field(
-            alias="Net Injection - MW",
-            description="Net injection (exports - imports)",
-        ),
-    ] = ActivePower(0.0, "MW")
-    
-    net_market_sales: Annotated[
-        ActivePower,
-        Field(
-            alias="Net Market Sales - MW",
-            description="Net sales to external energy markets",
-        ),
-    ] = ActivePower(0.0, "MW")
-    
-    peak_load: Annotated[
-        ActivePower,
-        Field(
-            alias="Peak Load - MW",
-            description="Peak load across the current period",
-        ),
-    ] = ActivePower(0.0, "MW")
-    
-    phase_angle: Annotated[
-        float,
-        Field(
-            alias="Phase Angle - °",
-            description="Node phase angle",
-        ),
-    ] = 0.0
-    
-    pump_generation: Annotated[
-        ActivePower,
-        Field(
-            alias="Pump Generation - MW",
-            description="Generation from pumped storage",
-        ),
-    ] = ActivePower(0.0, "MW")
-    
-    pump_load: Annotated[
-        ActivePower,
-        Field(
-            alias="Pump Load - MW",
-            description="Pump load",
-        ),
-    ] = ActivePower(0.0, "MW")
-    
-    purchaser_load: Annotated[
-        ActivePower,
-        Field(
-            alias="Purchaser Load - MW",
-            description="Load from cleared purchaser bids",
-        ),
-    ] = ActivePower(0.0, "MW")
-    
-    unserved_energy: Annotated[
-        ActivePower,
-        Field(
-            alias="Unserved Energy - MW",
-            description="Unserved energy (USE)",
-        ),
-    ] = ActivePower(0.0, "MW")
+# generation_coefficient: Annotated[
+#     ActivePower,
+#     Field(
+#         alias="Generation Coefficient",
+#         description="Coefficient of node generation",
+#     ),
+# ] = ActivePower(0.0, "MW")
 
-    water_plant_load: Annotated[
-        ActivePower,
-        Field(
-            alias="Water Plant Load - MW",
-            description="Load from water plants",
-        ),
-    ] = ActivePower(0.0, "MW")
+# load_coefficient: Annotated[
+#     ActivePower,
+#     Field(
+#         alias="Load Coefficient",
+#         description="Coefficient of node load",
+#     ),
+# ] = ActivePower(0.0, "MW")
 
-    # TODO: Node Virtual Emissions output properties
-    # TODO: Node Market output properties
+# mlf_coefficient: Annotated[
+#     float,
+#     Field(
+#         alias="MLF Coefficient",
+#         description="Coefficient of marginal loss factor",
+#     ),
+# ] = 0.0
+
+# net_injection_coefficient: Annotated[
+#     ActivePower,
+#     Field(
+#         alias="Net Injection Coefficient",
+#         description="Coefficient of node net injection",
+#     ),
+# ] = ActivePower(0.0, "MW")
+
+# net_load_coefficient: Annotated[
+#     ActivePower,
+#     Field(
+#         alias="Net Load Coefficient",
+#         description="Coefficient of load net of unserved and dump energy",
+#     ),
+# ] = ActivePower(0.0, "MW")
+
+# phase_angle_coefficient: Annotated[
+#     float,
+#     Field(
+#         alias="Phase Angle Coefficient",
+#         description="Coefficient of node phase angle in degrees",
+#     ),
+# ] = 0.0
+
+# unserved_energy_coefficient: Annotated[
+#     ActivePower,
+#     Field(
+#         alias="Unserved Energy Coefficient",
+#         description="Coefficient of unserved energy",
+#     ),
+# ] = ActivePower(0.0, "MW")
+
+# # Node decision variables input properties
+# net_injection_definition_coefficient: Annotated[
+#     ActivePower,
+#     Field(
+#         alias="Net Injection Definition Coefficient",
+#         description="Coefficient of Decision Variable in Node net injection definition equation",
+#     ),
+# ] = ActivePower(0.0, "MW")
+
+# # Node conditions input properties
+# condition_load_coefficient: Annotated[
+#     ActivePower,
+#     Field(
+#         alias="Load Coefficient",
+#         description="Coefficient of node demand in condition",
+#     ),
+# ] = ActivePower(0.0, "MW")
+
+# condition_unserved_energy_coefficient: Annotated[
+#     ActivePower,
+#     Field(
+#         alias="Unserved Energy Coefficient",
+#         description="Coefficient of unserved energy in condition",
+#     ),
+# ] = ActivePower(0.0, "MW")
+
+# # Node output properties
+# ac_mismatch: Annotated[
+#     ApparentPower,
+#     Field(
+#         alias="AC Mismatch - MVA",
+#         description="The magnitude of the complex power mismatch between the left- and right-hand sides of the AC power balance equation",
+#     ),
+# ] = ApparentPower(0.0, "MVA")
+
+# battery_generation: Annotated[
+#     ActivePower,
+#     Field(
+#         alias="Battery Generation - MW",
+#         description="Generation from batteries",
+#     ),
+# ] = ActivePower(0.0, "MW")
+
+# battery_load: Annotated[
+#     ActivePower,
+#     Field(
+#         alias="Battery Load - MW",
+#         description="Charging load from batteries",
+#     ),
+# ] = ActivePower(0.0, "MW")
+
+# capacity_reserves: Annotated[
+#     ActivePower,
+#     Field(
+#         alias="Capacity Reserves - MW",
+#         description="Capacity reserves (net of Peak Load)",
+#     ),
+# ] = ActivePower(0.0, "MW")
+
+# charging_station_deferred_load: Annotated[
+#     ActivePower,
+#     Field(
+#         alias="Charging Station Deferred Load - MW",
+#         description="Load from Charging Stations deferred",
+#     ),
+# ] = ActivePower(0.0, "MW")
+
+# charging_station_generation: Annotated[
+#     ActivePower,
+#     Field(
+#         alias="Charging Station Generation - MW",
+#         description="Generation from Charging Stations",
+#     ),
+# ] = ActivePower(0.0, "MW")
+
+# charging_station_hours_deferred: Annotated[
+#     Time,
+#     Field(
+#         alias="Charging Station Hours Deferred - h",
+#         description="Average hours Charging Station load is deferred in the period",
+#     ),
+# ] = Time(0.0, "h")
+
+# charging_station_load: Annotated[
+#     ActivePower,
+#     Field(
+#         alias="Charging Station Load - MW",
+#         description="Load from Charging Stations",
+#     ),
+# ] = ActivePower(0.0, "MW")
+
+# cleared_dsp_bid_cost: Annotated[
+#     float,
+#     Field(
+#         alias="Cleared DSP Bid Cost - $",
+#         description="Value of cleared demand-side participation bids",
+#     ),
+# ] = 0.0
+
+# cleared_dsp_bid_price: Annotated[
+#     DSPBidPrice,
+#     Field(
+#         alias="Cleared DSP Bid Price - $/MWh",
+#         description="Price of marginal demand-side participation bid band",
+#     ),
+# ] = DSPBidPrice(0.0, "USD/MWh")
+
+# congestion_charge: Annotated[
+#     float,
+#     Field(
+#         alias="Congestion Charge - $/MWh",
+#         description="Congestion component of locational marginal price",
+#     ),
+# ] = 0.0
+
+# contract_generation_capacity: Annotated[
+#     ActivePower,
+#     Field(
+#         alias="Contract Generation Capacity - MW",
+#         description="Physical contract generation capacity",
+#     ),
+# ] = ActivePower(0.0, "MW")
+
+# contract_load_obligation: Annotated[
+#     ActivePower,
+#     Field(
+#         alias="Contract Load Obligation - MW",
+#         description="Physical contract load obligation",
+#     ),
+# ] = ActivePower(0.0, "MW")
+
+# curtailable_load: Annotated[
+#     ActivePower,
+#     Field(
+#         alias="Curtailable Load - MW",
+#         description="Curtailable (dispatchable) load",
+#     ),
+# ] = ActivePower(0.0, "MW")
+
+# customer_load: Annotated[
+#     ActivePower,
+#     Field(
+#         alias="Customer Load - MW",
+#         description="Load served to customers at the node",
+#     ),
+# ] = ActivePower(0.0, "MW")
+
+# demand_curtailed: Annotated[
+#     ActivePower,
+#     Field(
+#         alias="Demand Curtailed - MW",
+#         description="Demand-side participation bids cleared",
+#     ),
+# ] = ActivePower(0.0, "MW")
+
+# discrete_maintenance: Annotated[
+#     ActivePower,
+#     Field(
+#         alias="Discrete Maintenance - MW",
+#         description="Discrete maintenance (defined by Units Out)",
+#     ),
+# ] = ActivePower(0.0, "MW")
+
+# distributed_maintenance: Annotated[
+#     ActivePower,
+#     Field(
+#         alias="Distributed Maintenance - MW",
+#         description="Maintenance notionally allocated to period",
+#     ),
+# ] = ActivePower(0.0, "MW")
+
+# dump_energy: Annotated[
+#     ActivePower,
+#     Field(
+#         alias="Dump Energy - MW",
+#         description="Dump energy (over generation)",
+#     ),
+# ] = ActivePower(0.0, "MW")
+
+# edns: Annotated[
+#     ActivePower,
+#     Field(
+#         alias="EDNS - MW",
+#         description="Expected Demand Not Served",
+#     ),
+# ] = ActivePower(0.0, "MW")
+
+# eens: Annotated[
+#     Energy,
+#     Field(
+#         alias="EENS - MWh",
+#         description="Expected Energy Not Served",
+#     ),
+# ] = Energy(0.0, "MWh")
+
+# energy_charge: Annotated[
+#     float,
+#     Field(
+#         alias="Energy Charge - $/MWh",
+#         description="Energy component of locational marginal price",
+#     ),
+# ] = 0.0
+
+# export_capacity: Annotated[
+#     ActivePower,
+#     Field(
+#         alias="Export Capacity - MW",
+#         description="Total export capacity from the Node",
+#     ),
+# ] = ActivePower(0.0, "MW")
+
+# exports: Annotated[
+#     ActivePower,
+#     Field(
+#         alias="Exports - MW",
+#         description="Exports from the node",
+#     ),
+# ] = ActivePower(0.0, "MW")
+
+# facility_generation: Annotated[
+#     ActivePower,
+#     Field(
+#         alias="Facility Generation - MW",
+#         description="Generation from connected Facilities",
+#     ),
+# ] = ActivePower(0.0, "MW")
+
+# facility_load: Annotated[
+#     ActivePower,
+#     Field(
+#         alias="Facility Load - MW",
+#         description="Load from connected Facilities",
+#     ),
+# ] = ActivePower(0.0, "MW")
+
+# flow: Annotated[
+#     ActivePower,
+#     Field(
+#         alias="Flow - MW",
+#         description="Flow through the node",
+#     ),
+# ] = ActivePower(0.0, "MW")
+
+# import_capacity: Annotated[
+#     ActivePower,
+#     Field(
+#         alias="Import Capacity - MW",
+#         description="Total import capacity to the Node",
+#     ),
+# ] = ActivePower(0.0, "MW")
+
+# imports: Annotated[
+#     ActivePower,
+#     Field(
+#         alias="Imports - MW",
+#         description="Imports to the node",
+#     ),
+# ] = ActivePower(0.0, "MW")
+
+# injection_mismatch: Annotated[
+#     ActivePower,
+#     Field(
+#         alias="Injection Mismatch - MW",
+#         description="Absolute value of mismatch of injection due to PTDF threshold",
+#     ),
+# ] = ActivePower(0.0, "MW")
+
+# losses: Annotated[
+#     ActivePower,
+#     Field(
+#         alias="Losses - MW",
+#         description="Losses allocated to the node",
+#     ),
+# ] = ActivePower(0.0, "MW")
+
+# marginal_loss_charge: Annotated[
+#     float,
+#     Field(
+#         alias="Marginal Loss Charge - $/MWh",
+#         description="Marginal loss component of locational marginal price",
+#     ),
+# ] = 0.0
+
+# marginal_loss_factor: Annotated[
+#     float,
+#     Field(
+#         alias="Marginal Loss Factor",
+#         description="Marginal loss factor to slack bus(es)",
+#     ),
+# ] = 0.0
+
+# min_load: Annotated[
+#     ActivePower,
+#     Field(
+#         alias="Min Load - MW",
+#         description="Minimum load across the current period",
+#     ),
+# ] = ActivePower(0.0, "MW")
+
+# native_load: Annotated[
+#     ActivePower,
+#     Field(
+#         alias="Native Load - MW",
+#         description="Native load",
+#     ),
+# ] = ActivePower(0.0, "MW")
+
+# net_capacity_interchange: Annotated[
+#     ActivePower,
+#     Field(
+#         alias="Net Capacity Interchange - MW",
+#         description="Export Capability - Import Capability",
+#     ),
+# ] = ActivePower(0.0, "MW")
+
+# net_contract_load: Annotated[
+#     ActivePower,
+#     Field(
+#         alias="Net Contract Load - MW",
+#         description="Net of contract sales and generation",
+#     ),
+# ] = ActivePower(0.0, "MW")
+
+# net_dc_export: Annotated[
+#     ActivePower,
+#     Field(
+#         alias="Net DC Export - MW",
+#         description="Export from the node on DC lines net of losses",
+#     ),
+# ] = ActivePower(0.0, "MW")
+
+# net_injection: Annotated[
+#     ActivePower,
+#     Field(
+#         alias="Net Injection - MW",
+#         description="Net injection (exports - imports)",
+#     ),
+# ] = ActivePower(0.0, "MW")
+
+# net_market_sales: Annotated[
+#     ActivePower,
+#     Field(
+#         alias="Net Market Sales - MW",
+#         description="Net sales to external energy markets",
+#     ),
+# ] = ActivePower(0.0, "MW")
+
+# peak_load: Annotated[
+#     ActivePower,
+#     Field(
+#         alias="Peak Load - MW",
+#         description="Peak load across the current period",
+#     ),
+# ] = ActivePower(0.0, "MW")
+
+# phase_angle: Annotated[
+#     float,
+#     Field(
+#         alias="Phase Angle - °",
+#         description="Node phase angle",
+#     ),
+# ] = 0.0
+
+# pump_generation: Annotated[
+#     ActivePower,
+#     Field(
+#         alias="Pump Generation - MW",
+#         description="Generation from pumped storage",
+#     ),
+# ] = ActivePower(0.0, "MW")
+
+# pump_load: Annotated[
+#     ActivePower,
+#     Field(
+#         alias="Pump Load - MW",
+#         description="Pump load",
+#     ),
+# ] = ActivePower(0.0, "MW")
+
+# purchaser_load: Annotated[
+#     ActivePower,
+#     Field(
+#         alias="Purchaser Load - MW",
+#         description="Load from cleared purchaser bids",
+#     ),
+# ] = ActivePower(0.0, "MW")
+
+# unserved_energy: Annotated[
+#     ActivePower,
+#     Field(
+#         alias="Unserved Energy - MW",
+#         description="Unserved energy (USE)",
+#     ),
+# ] = ActivePower(0.0, "MW")
+
+# water_plant_load: Annotated[
+#     ActivePower,
+#     Field(
+#         alias="Water Plant Load - MW",
+#         description="Load from water plants",
+#     ),
+# ] = ActivePower(0.0, "MW")
+
